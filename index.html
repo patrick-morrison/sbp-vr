@@ -394,7 +394,7 @@
                 modelScale.dispatchEvent(new Event('input'));
 
                 verticalAdjustment.value = 1.3;
-                document.getElementById('verticalAdjustmentLabel').textContent = `Z Offset: 1.3`;
+                document.getElementById('verticalAdjustmentLabel').textContent = `Vertical Adjustment: 1.3`;
                 verticalAdjustment.dispatchEvent(new Event('input'));
 
                 // Fetch and load the preset file
@@ -458,9 +458,24 @@
 
         async function togglePassthrough(enable) {
             if (enable) {
-                const sessionInit = { optionalFeatures: ['dom-overlay', 'dom-overlay-for-handheld-ar', 'hand-tracking'] };
-                const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
-                renderer.xr.setSession(session);
+                if (renderer.xr.isPresenting) {
+                    await renderer.xr.getSession().end();
+                }
+                const isSupported = await navigator.xr.isSessionSupported('immersive-ar');
+                if (!isSupported) {
+                    console.warn('Immersive AR not supported on this device');
+                    return;
+                }
+                const sessionInit = {
+                    optionalFeatures: ['dom-overlay', 'dom-overlay-for-handheld-ar', 'hand-tracking'],
+                    domOverlay: { root: document.body }
+                };
+                try {
+                    const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
+                    renderer.xr.setSession(session);
+                } catch (error) {
+                    console.error('Failed to start AR session:', error);
+                }
             } else {
                 if (renderer.xr.isPresenting) {
                     renderer.xr.getSession().end();
