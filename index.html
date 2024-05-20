@@ -149,7 +149,7 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x303030);
 
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera = new THREE.PerspectiveCamera(110, window.innerWidth / window.innerHeight, 0.01, 100);
             camera.position.set(0, 1, 3);
 
             room = new THREE.LineSegments(
@@ -641,7 +641,7 @@
                 vColor = color;
                 vOpacity = opacity;
                 vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                gl_PointSize = size;
+                gl_PointSize = size * (300.0 / -mvPosition.z);
                 gl_Position = projectionMatrix * mvPosition;
             }
         `,
