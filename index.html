@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>SBP VR Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        body { margin: 0; background-color: #202020; color: white; }
+        canvas { display: block; }
+        .controls { position: absolute; top: 0; width: 100%; z-index: 100; }
+        .custom-file-input { display: none; }
+        .custom-file-label { cursor: pointer; background-color: #343a40; color: #ffffff; border-color: #343a40; padding: 0.375rem 0.75rem; border-radius: 0.25rem; }
+        .custom-file-label:hover { background-color: #495057; }
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: small; color: gray; background-color: #343a40; padding: 5px; }
+        #loadingIndicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 200; display: none; color: white; font-size: 24px; }
+        #fileSpinner { display: none; }
+        .settings-label {
+            margin-bottom: 0.5rem;
+            display: block; text-align: center;
+            cursor: pointer; /* Make label clickable */
+        }
+        .link-text {
+            color: #dee2e6;
+            cursor: pointer;
+            font-size: small;
+            text-decoration: underline;
+            white-space: normal;
+            display: block;
+            width: 100%;
+            max-width: 120px;
+            text-align: center;
+            margin: 0 auto;
+        }
+        .link-text:hover {
+            color: #ffffff;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark controls">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">SBP VR Viewer</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0"></ul>
+                <ul class="navbar-nav mb-2 mb-lg-0 d-flex align-items-center">
+                    <li class="nav-item me-2 d-flex align-items-center">
+                        <div id="fileSpinner" class="spinner-border text-light me-2" role="status" style="width: 1rem; height: 1rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </li>
+                    <li class="nav-item me-2 d-flex align-items-center">
+                        <label for="fileInput" class="custom-file-label" disabled>Choose File</label>
+                        <input type="file" id="fileInput" accept=".txt" class="custom-file-input" disabled>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-dark dropdown-toggle" type="button" id="settingsButton" data-bs-toggle="dropdown" aria-expanded="false">Settings</button>
+                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark p-3" aria-labelledby="settingsButton">
+                            <li class="mb-3">
+                                <label for="verticalScale" id="verticalScaleLabel" class="settings-label">Z Scale: 1x</label>
+                                <input type="range" id="verticalScale" min="0.5" max="20" value="1" step="0.5" class="form-range">
+                                <div class="collapse" id="flatNotif">
+                                    <a id="setZFactorLink" class="link-text">Too flat? Increase the vertical scale.</a>
+                                </div>
+                            </li>
+                            <li class="mb-3">
+                                <label for="pointSize" id="pointSizeLabel" class="settings-label">Point Size: 1x</label>
+                                <input type="range" id="pointSize" min="0.1" max="2" value="1" step="0.1" class="form-range">
+                            </li>
+                            <li class="mb-3">
+                                <label for="transparency" id="transparencyLabel" class="settings-label">Opacity: 1x</label>
+                                <input type="range" id="transparency" min="0.1" max="2" value="1" step="0.1" class="form-range">
+                            </li>
+                            <li class="mb-3">
+                                <label id="intensityFilterLabel" class="settings-label">Min Intensity: 0</label>
+                                <input type="range" id="intensityFilter" min="0" max="1" value="0" step="0.01" class="form-range">
+                                <label id="pointCountLabel" class="settings-label" style="font-size: small; color: gray;">Points: 0</label>
+                            </li>
+                            <li class="mb-3">
+                                <label for="colorPalette" class="settings-label">Color Palette</label>
+                                <select id="colorPalette" class="form-select">
+                                    <option value="rainbow" selected>Rainbow</option>
+                                    <option value="redBlue">Red/Blue</option>
+                                    <option value="greyscale">Greyscale</option>
+                                    <option value="viridis">Viridis</option>
+                                    <option value="magma">Magma</option>
+                                </select>
+                            </li>
+                            <li class="mb-3">
+                                <label for="modelScale" id="modelScaleLabel" class="settings-label">Model Scale: 100%</label>
+                                <input type="range" id="modelScale" min="0.05" max="2" value="1" step="0.01" class="form-range">
+                            </li>
+                            <li class="mb-3">
+                                <label for="verticalAdjustment" id="verticalAdjustmentLabel" class="settings-label">Vertical Adjustment: 0
+                                </label>
+                                <input type="range" id="verticalAdjustment" min="-5" max="5" value="0" step="0.1" class="form-range">
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div id="loadingIndicator">Loading...</div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { BoxLineGeometry } from 'three/addons/geometries/BoxLineGeometry.js';
+        import { VRButton } from 'three/addons/webxr/VRButton.js';
+        import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let camera, scene, raycaster, renderer, controls;
+        let controller1, controller2;
+        let controllerGrip1, controllerGrip2;
+        let room, marker, floor, baseReferenceSpace;
+        let INTERSECTION;
+        const tempMatrix = new THREE.Matrix4();
+        let pointsObject = null;
+        let pointsData = null;
+        let originalPoints = null;
+        let currentVerticalScale = 1;
+        let currentPointSize = 1;
+        let currentTransparency = 1;
+        let currentIntensityFilter = 0;
+        let currentModelScale = 1;
+        let currentHeightAdjustment = 0;
+        let geometry = null;
+        const PRESET_URL = 'https://github.com/patrick-morrison/sbp-vr/raw/main/james_matthews_github.txt';
+
+
+        init();
+        animate();
+
+    
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x303030);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1, 3);
+
+            room = new THREE.LineSegments(
+                new BoxLineGeometry(20, 20, 20, 10, 10, 10).translate(0, 10, 0),
+                new THREE.LineBasicMaterial({ color: 0xbcbcbc })
+            );
+            scene.add(room);
+
+            scene.add(new THREE.HemisphereLight(0xa5a5a5, 0x898989, 3));
+
+            const light = new THREE.DirectionalLight(0xffffff, 3);
+            light.position.set(1, 1, 1).normalize();
+            scene.add(light);
+
+            marker = new THREE.Mesh(
+                new THREE.CircleGeometry(0.25, 32).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0xbcbcbc })
+            );
+            scene.add(marker);
+
+            floor = new THREE.Mesh(
+                new THREE.PlaneGeometry(100, 100, 2, 2).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0xbcbcbc, transparent: true, opacity: 0.25 })
+            );
+            scene.add(floor);
+
+            raycaster = new THREE.Raycaster();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            controls.screenSpacePanning = true;
+            controls.maxPolarAngle = Math.PI;
+            controls.minPolarAngle = 0;
+            controls.enableRotate = true;
+
+            document.body.appendChild(renderer.domElement);
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            renderer.xr.addEventListener('sessionstart', () => {
+                baseReferenceSpace = renderer.xr.getReferenceSpace();
+                controls.enabled = false;
+            });
+
+            renderer.xr.addEventListener('sessionend', () => {
+                controls.enabled = true;
+            });
+
+            function onSelectStart() {
+                this.userData.isSelecting = true;
+            }
+
+            function onSelectEnd() {
+                this.userData.isSelecting = false;
+                if (INTERSECTION) {
+                    const offsetPosition = { x: -INTERSECTION.x, y: -INTERSECTION.y, z: -INTERSECTION.z, w: 1 };
+                    const offsetRotation = new THREE.Quaternion();
+                    const transform = new XRRigidTransform(offsetPosition, offsetRotation);
+                    const teleportSpaceOffset = baseReferenceSpace.getOffsetReferenceSpace(transform);
+                    renderer.xr.setReferenceSpace(teleportSpaceOffset);
+                }
+            }
+
+            controller1 = renderer.xr.getController(0);
+            controller1.addEventListener('selectstart', onSelectStart);
+            controller1.addEventListener('selectend', onSelectEnd);
+            controller1.addEventListener('connected', function (event) {
+                this.add(buildController(event.data));
+            });
+            controller1.addEventListener('disconnected', function () {
+                this.remove(this.children[0]);
+            });
+            scene.add(controller1);
+
+            controller2 = renderer.xr.getController(1);
+            controller2.addEventListener('selectstart', onSelectStart);
+            controller2.addEventListener('selectend', onSelectEnd);
+            controller2.addEventListener('connected', function (event) {
+                this.add(buildController(event.data));
+            });
+            controller2.addEventListener('disconnected', function () {
+                this.remove(this.children[0]);
+            });
+            scene.add(controller2);
+
+            const controllerModelFactory = new XRControllerModelFactory();
+            controllerGrip1 = renderer.xr.getControllerGrip(0);
+            controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
+            scene.add(controllerGrip1);
+
+            controllerGrip2 = renderer.xr.getControllerGrip(1);
+            controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
+            scene.add(controllerGrip2);
+
+            window.addEventListener('resize', onWindowResize, false);
+            document.getElementById('fileInput').addEventListener('change', handleFileSelect, false);
+
+            document.getElementById('verticalScale').addEventListener('input', function (event) {
+                currentVerticalScale = event.target.value;
+                document.getElementById('verticalScaleLabel').textContent = `Z Scale: ${currentVerticalScale}x`;
+                if (originalPoints) {
+                    pointsData = processPoints(originalPoints, currentVerticalScale);
+                    visualizePointCloud(pointsData);
+                }
+                var flatNotif = new bootstrap.Collapse(document.getElementById('flatNotif'), { toggle: false });
+                flatNotif.hide();
+            });
+
+            document.getElementById('pointSize').addEventListener('input', function (event) {
+                currentPointSize = event.target.value;
+                document.getElementById('pointSizeLabel').textContent = `Point Size: ${currentPointSize}x`;
+                if (pointsData) {
+                    updatePointCloud(pointsData);
+                }
+            });
+
+            document.getElementById('transparency').addEventListener('input', function (event) {
+                currentTransparency = parseFloat(event.target.value);
+                document.getElementById('transparencyLabel').textContent = `Opacity: ${currentTransparency}x`;
+                if (pointsData) {
+                    updatePointCloud(pointsData);
+                }
+            });
+
+
+            document.getElementById('intensityFilter').addEventListener('input', function (event) {
+                currentIntensityFilter = event.target.value;
+                document.getElementById('intensityFilterLabel').textContent = `Min Intensity: ${currentIntensityFilter}`;
+                if (pointsData) {
+                    visualizePointCloud(pointsData);
+                }
+            });
+
+            document.getElementById('colorPalette').addEventListener('change', function () {
+                if (pointsData) {
+                    visualizePointCloud(pointsData);
+                }
+            });
+
+            document.getElementById('setZFactorLink').addEventListener('click', function() {
+                event.stopPropagation();
+                document.getElementById('verticalScale').value = 10;
+                document.getElementById('verticalScale').dispatchEvent(new Event('input'));
+                var flatNotif = new bootstrap.Collapse(document.getElementById('flatNotif'), { toggle: false });
+                flatNotif.hide();
+            });
+
+            document.getElementById('verticalScaleLabel').addEventListener('click', function (event) {
+                event.stopPropagation();
+                const verticalScale = document.getElementById('verticalScale');
+                verticalScale.value = 1;
+                currentVerticalScale = 1;
+                document.getElementById('verticalScaleLabel').textContent = `Z Scale: ${currentVerticalScale}x`;
+                if (originalPoints) {
+                    pointsData = processPoints(originalPoints, currentVerticalScale);
+                    visualizePointCloud(pointsData);
+                }
+            });
+
+            document.getElementById('pointSizeLabel').addEventListener('click', function (event) {
+                event.stopPropagation();
+                const pointSize = document.getElementById('pointSize');
+                pointSize.value = 1;
+                currentPointSize = 1;
+                document.getElementById('pointSizeLabel').textContent = `Point Size: ${currentPointSize}x`;
+                if (pointsData) {
+                    updatePointCloud(pointsData);
+                }
+            });
+
+            document.getElementById('transparencyLabel').addEventListener('click', function (event) {
+                event.stopPropagation();
+                const transparency = document.getElementById('transparency');
+                transparency.value = 1;
+                currentTransparency = 1;
+                document.getElementById('transparencyLabel').textContent = `Opacity: ${currentTransparency}x`;
+                if (pointsData) {
+                    updatePointCloud(pointsData);
+                }
+            });
+
+            document.getElementById('modelScale').addEventListener('input', function (event) {
+                currentModelScale = event.target.value;
+                document.getElementById('modelScaleLabel').textContent = `Model Scale: ${Math.round(currentModelScale * 100)}%`;
+                if (originalPoints) {
+                    pointsData = processPoints(originalPoints, currentVerticalScale);
+                    visualizePointCloud(pointsData);
+                }
+            });
+
+            document.getElementById('verticalAdjustment').addEventListener('input', function (event) {
+                currentHeightAdjustment = parseFloat(event.target.value); 
+                document.getElementById('verticalAdjustmentLabel').textContent = `Vertical Adjustment: ${currentHeightAdjustment}`;
+                if (originalPoints) {
+                    pointsData = processPoints(originalPoints, currentVerticalScale);
+                    visualizePointCloud(pointsData);
+                }
+            });
+
+                // Set initial slider values
+                const verticalScale = document.getElementById('verticalScale');
+                const pointSize = document.getElementById('pointSize');
+                const transparency = document.getElementById('transparency');
+                const intensityFilter = document.getElementById('intensityFilter');
+                const colorPalette = document.getElementById('colorPalette');
+                const modelScale = document.getElementById('modelScale');
+                const verticalAdjustment = document.getElementById('verticalAdjustment');
+
+                verticalScale.value = 10;
+                document.getElementById('verticalScaleLabel').textContent = `Z Scale: 10x`;
+                verticalScale.dispatchEvent(new Event('input'));
+
+                pointSize.value = 0.3;
+                document.getElementById('pointSizeLabel').textContent = `Point Size: 0.3x`;
+                pointSize.dispatchEvent(new Event('input'));
+
+                transparency.value = 0.5;
+                document.getElementById('transparencyLabel').textContent = `Opacity: 0.5x`;
+                transparency.dispatchEvent(new Event('input'));
+
+                intensityFilter.value = 0.25;
+                document.getElementById('intensityFilterLabel').textContent = `Min Intensity: 0.25`;
+                intensityFilter.dispatchEvent(new Event('input'));
+
+                colorPalette.value = 'rainbow';
+
+                modelScale.value = 0.25;
+                document.getElementById('modelScaleLabel').textContent = `Model Scale: 25%`;
+                modelScale.dispatchEvent(new Event('input'));
+
+                verticalAdjustment.value = 1.3;
+                document.getElementById('verticalAdjustmentLabel').textContent = `Z Offset: 1.3`;
+                verticalAdjustment.dispatchEvent(new Event('input'));
+
+                // Fetch and load the preset file
+                fetchPresetFile();
+        }
+
+        function buildController(data) {
+            let geometry, material;
+            switch (data.targetRayMode) {
+                case 'tracked-pointer':
+                    geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, -1], 3));
+                    geometry.setAttribute('color', new THREE.Float32BufferAttribute([0.5, 0.5, 0.5, 0, 0, 0], 3));
+                    material = new THREE.LineBasicMaterial({ vertexColors: true, blending: THREE.AdditiveBlending });
+                    return new THREE.Line(geometry, material);
+                case 'gaze':
+                    geometry = new THREE.RingGeometry(0.02, 0.04, 32).translate(0, 0, -1);
+                    material = new THREE.MeshBasicMaterial({ opacity: 0.5, transparent: true });
+                    return new THREE.Mesh(geometry, material);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            renderer.setAnimationLoop(render);
+        }
+
+        function render() {
+            INTERSECTION = undefined;
+            if (controller1.userData.isSelecting === true) {
+                tempMatrix.identity().extractRotation(controller1.matrixWorld);
+                raycaster.ray.origin.setFromMatrixPosition(controller1.matrixWorld);
+                raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+                const intersects = raycaster.intersectObjects([floor]);
+                if (intersects.length > 0) {
+                    INTERSECTION = intersects[0].point;
+                }
+            } else if (controller2.userData.isSelecting === true) {
+                tempMatrix.identity().extractRotation(controller2.matrixWorld);
+                raycaster.ray.origin.setFromMatrixPosition(controller2.matrixWorld);
+                raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+                const intersects = raycaster.intersectObjects([floor]);
+                if (intersects.length > 0) {
+                    INTERSECTION = intersects[0].point;
+                }
+            }
+            if (INTERSECTION) marker.position.copy(INTERSECTION);
+            marker.visible = INTERSECTION !== undefined;
+
+            if (controls.enabled) {
+                controls.update();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function fetchPresetFile() {
+    fetch(PRESET_URL)
+        .then(response => response.text())
+        .then(data => {
+            originalPoints = parsePointCloudData(data);
+            pointsData = processPoints(originalPoints, currentVerticalScale);
+            visualizePointCloud(pointsData);
+            checkFileHeight(originalPoints);
+        })
+        .catch(error => console.error('Error fetching preset file:', error));
+
+        const fileName = 'james_matthews.txt';
+        document.querySelector('.custom-file-label').textContent = fileName;
+}
+
+
+        function handleFileSelect(event) {
+    showSpinner();
+    requestAnimationFrame(() => {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+            const contents = e.target.result;
+            originalPoints = parsePointCloudData(contents);
+            pointsData = processPoints(originalPoints, currentVerticalScale);
+            visualizePointCloud(pointsData);
+            checkFileHeight(originalPoints);
+            hideSpinner();
+        };
+
+        reader.readAsText(file);
+
+        // Update the file input label
+        const fileName = file.name;
+        document.querySelector('.custom-file-label').textContent = fileName;
+    });
+}
+
+
+        function showSpinner() {
+            const fileSpinner = document.getElementById('fileSpinner');
+            fileSpinner.style.display = 'block';
+        }
+
+        function hideSpinner() {
+            const fileSpinner = document.getElementById('fileSpinner');
+            fileSpinner.style.display = 'none';
+        }
+
+        function parsePointCloudData(data) {
+            const lines = data.split('\n');
+            const points = [];
+            let minIntensity = Infinity, maxIntensity = -Infinity;
+            let minX = Infinity, minY = Infinity, minZ = Infinity;
+            let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+            for (let line of lines) {
+                const [x, y, z, intensity] = line.split(' ').map(Number);
+                if (!isNaN(x) && !isNaN(y) && !isNaN(z) && !isNaN(intensity)) {
+                    points.push({ position: new THREE.Vector3(x, y, z), intensity });
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    minZ = Math.min(minZ, z);
+                    maxX = Math.max(maxX, x);
+                    maxY = Math.max(maxY, y);
+                    maxZ = Math.max(maxZ, z);
+                    minIntensity = Math.min(minIntensity, intensity);
+                    maxIntensity = Math.max(maxIntensity, intensity);
+                }
+            }
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+            const centerZ = (minZ + maxZ) / 2;
+            points.forEach(point => {
+                point.position.x -= centerX;
+                point.position.y -= centerY;
+                point.position.z -= centerZ;
+            });
+            return { points, minIntensity, maxIntensity };
+        }
+
+        function processPoints(pointCloud, scale) {
+            const processedPoints = pointCloud.points.map(point => ({
+                x: point.position.x * currentModelScale,
+                y: (point.position.z * currentModelScale * scale) + currentHeightAdjustment,  // Apply scaling to the Z coordinate and map it to Y.
+                z: point.position.y * currentModelScale,  // Map Y coordinate to Z.
+                intensity: point.intensity
+            }));
+
+            return { points: processedPoints, minIntensity: pointCloud.minIntensity, maxIntensity: pointCloud.maxIntensity };
+        }
+
+        function getColor(value, palette) {
+            const norm = value / 1.0;
+            if (palette === 'rainbow') {
+                const hue = (1.0 - norm) * 270;
+                return new THREE.Color(`hsl(${hue}, 100%, 50%)`);
+            } else if (palette === 'redBlue') {
+                const r = norm > 0.5 ? 1 : 2 * norm;
+                const g = norm > 0.5 ? 2 * (1 - norm) : 2 * norm;
+                const b = norm < 0.5 ? 1 : 2 * (1 - norm);
+                return new THREE.Color(r * 0.6 + 0.4, g * 0.6 + 0.4, b * 0.6 + 0.4);
+            } else if (palette === 'greyscale') {
+                return new THREE.Color(norm, norm, norm);
+            } else if (palette === 'viridis') {
+                const viridis = [
+                    [68, 1, 84],
+                    [72, 40, 120],
+                    [62, 74, 137],
+                    [49, 104, 142],
+                    [38, 130, 142],
+                    [31, 158, 137],
+                    [53, 183, 121],
+                    [109, 205, 89],
+                    [180, 222, 44],
+                    [253, 231, 37]
+                ];
+                const colorIndex = Math.floor(norm * (viridis.length - 1));
+                const color = viridis[colorIndex];
+                return new THREE.Color(`rgb(${color[0]}, ${color[1]}, ${color[2]})`);
+            } else if (palette === 'magma') {
+                const magma = [
+                    [0, 0, 4],
+                    [28, 16, 68],
+                    [79, 18, 123],
+                    [129, 37, 129],
+                    [181, 54, 122],
+                    [229, 80, 100],
+                    [252, 135, 97],
+                    [254, 194, 135],
+                    [252, 253, 191]
+                ];
+                const colorIndex = Math.floor(norm * (magma.length - 1));
+                const color = magma[colorIndex];
+                return new THREE.Color(`rgb(${color[0]}, ${color[1]}, ${color[2]})`);
+            }
+        }
+
+        function visualizePointCloud(pointCloud) {
+    const { points, minIntensity, maxIntensity } = pointCloud;
+    const colorPalette = document.getElementById('colorPalette').value;
+
+    if (pointsObject) {
+        scene.remove(pointsObject);
+        pointsObject.geometry.dispose();
+        pointsObject.material.dispose();
+    }
+
+    const positions = [];
+    const colors = [];
+    const sizes = [];
+    const opacities = [];
+    let filteredPointCount = 0;
+
+    points.forEach(point => {
+        if (point.intensity >= currentIntensityFilter * maxIntensity) {
+            positions.push(point.x, point.y, point.z);
+
+            const intensityNorm = (point.intensity - currentIntensityFilter * maxIntensity) / (maxIntensity - currentIntensityFilter * maxIntensity);
+            const color = getColor(intensityNorm, colorPalette);
+            colors.push(color.r, color.g, color.b);
+
+            sizes.push(currentPointSize * intensityNorm); // Adjust point size based on intensity and slider value
+            opacities.push(currentTransparency * intensityNorm); // Apply opacity based on intensity and slider value
+            filteredPointCount++;
+        }
+    });
+
+    geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+    geometry.setAttribute('opacity', new THREE.Float32BufferAttribute(opacities, 1));
+
+    const material = new THREE.ShaderMaterial({
+        vertexColors: true,
+        transparent: true,
+        depthTest: false,
+        uniforms: {},
+        vertexShader: `
+            attribute float size;
+            attribute float opacity;
+            varying vec3 vColor;
+            varying float vOpacity;
+            void main() {
+                vColor = color;
+                vOpacity = opacity;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = size * (300.0 / -mvPosition.z);
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `,
+        fragmentShader: `
+            varying vec3 vColor;
+            varying float vOpacity;
+            void main() {
+                gl_FragColor = vec4(vColor, vOpacity);
+                float dist = distance(gl_PointCoord, vec2(0.5, 0.5));
+                if (dist > 0.5) discard;
+            }
+        `,
+    });
+
+    pointsObject = new THREE.Points(geometry, material);
+    scene.add(pointsObject);
+
+    document.getElementById('pointCountLabel').textContent = `Points: ${filteredPointCount.toLocaleString()}`;
+}
+
+function updatePointCloud(pointCloud) {
+    if (!geometry) return;
+
+    const { points, minIntensity, maxIntensity } = pointCloud;
+    const colorPalette = document.getElementById('colorPalette').value;
+
+    const sizes = [];
+    const opacities = [];
+    let filteredPointCount = 0;
+
+    points.forEach(point => {
+        if (point.intensity >= currentIntensityFilter * maxIntensity) {
+            const intensityNorm = (point.intensity - currentIntensityFilter * maxIntensity) / (maxIntensity - currentIntensityFilter * maxIntensity);
+            sizes.push(currentPointSize * intensityNorm); // Adjust point size based on intensity and slider value
+            opacities.push(currentTransparency * intensityNorm); // Apply opacity based on intensity and slider value
+            filteredPointCount++;
+        }
+    });
+
+    geometry.attributes.size.array = new Float32Array(sizes);
+    geometry.attributes.size.needsUpdate = true;
+
+    geometry.attributes.opacity.array = new Float32Array(opacities);
+    geometry.attributes.opacity.needsUpdate = true;
+
+    document.getElementById('pointCountLabel').textContent = `Points: ${filteredPointCount.toLocaleString()}`;
+}
+
+
+
+        function checkFileHeight(pointCloud) {
+            const height = pointCloud.points.reduce((max, point) => Math.max(max, point.position.z), 0);
+            if (height < 10) {
+                showNotification();
+            }
+        }
+
+        function showNotification() {
+            var flatNotif = new bootstrap.Collapse(document.getElementById('flatNotif'));
+            flatNotif.show();
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <div class="footer">
+        Created in 2024 by Patrick Morrison. <a href="https://github.com/patrick-morrison/sbp_viewer" style="color: gray;">Source Code</a>
+    </div>
+</body>
+</html>
