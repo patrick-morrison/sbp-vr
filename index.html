@@ -7,7 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <style>
         body { margin: 0; background-color: #202020; color: white; }
-        canvas { display: block; }
+        canvas { display: block; background: none; }
         .controls { position: absolute; top: 0; width: 100%; z-index: 100; }
         .custom-file-input { display: none; }
         .custom-file-label { cursor: pointer; background-color: #343a40; color: #ffffff; border-color: #343a40; padding: 0.375rem 0.75rem; border-radius: 0.25rem; }
@@ -102,8 +102,7 @@
                                 <input type="range" id="modelScale" min="0.05" max="2" value="1" step="0.01" class="form-range">
                             </li>
                             <li class="mb-3">
-                                <label for="verticalAdjustment" id="verticalAdjustmentLabel" class="settings-label">Vertical Adjustment: 0
-                                </label>
+                                <label for="verticalAdjustment" id="verticalAdjustmentLabel" class="settings-label">Vertical Adjustment: 0</label>
                                 <input type="range" id="verticalAdjustment" min="-5" max="5" value="0" step="0.1" class="form-range">
                             </li>
                         </ul>
@@ -114,6 +113,10 @@
     </nav>
 
     <div id="loadingIndicator">Loading...</div>
+    <div id="arVrButtons" style="text-align: center; padding: 10px;">
+        <button class="btn btn-primary" id="vrButton">Start VR</button>
+        <button class="btn btn-secondary" id="arButton">Start AR</button>
+    </div>
 
     <script type="module">
         import * as THREE from 'three';
@@ -140,11 +143,9 @@
         let geometry = null;
         const PRESET_URL = 'https://patrick-morrison.github.io/sbp-vr/james_matthews_github.txt';
 
-
         init();
         animate();
 
-    
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x101010);
@@ -178,7 +179,7 @@
 
             raycaster = new THREE.Raycaster();
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
@@ -192,7 +193,14 @@
             controls.enableRotate = true;
 
             document.body.appendChild(renderer.domElement);
-            document.body.appendChild(VRButton.createButton(renderer));
+
+            document.getElementById('vrButton').addEventListener('click', () => {
+                startSession('immersive-vr');
+            });
+
+            document.getElementById('arButton').addEventListener('click', () => {
+                startSession('immersive-ar');
+            });
 
             renderer.xr.addEventListener('sessionstart', () => {
                 baseReferenceSpace = renderer.xr.getReferenceSpace();
@@ -279,7 +287,6 @@
                     updatePointCloud(pointsData);
                 }
             });
-
 
             document.getElementById('intensityFilter').addEventListener('input', function (event) {
                 currentIntensityFilter = event.target.value;
@@ -410,6 +417,14 @@
             }
         }
 
+        function startSession(mode) {
+            navigator.xr.requestSession(mode, {
+                optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking', 'layers']
+            }).then(session => {
+                renderer.xr.setSession(session);
+            });
+        }
+
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -450,44 +465,42 @@
         }
 
         function fetchPresetFile() {
-    fetch(PRESET_URL)
-        .then(response => response.text())
-        .then(data => {
-            originalPoints = parsePointCloudData(data);
-            pointsData = processPoints(originalPoints, currentVerticalScale);
-            visualizePointCloud(pointsData);
-            checkFileHeight(originalPoints);
-        })
-        .catch(error => console.error('Error fetching preset file:', error));
+            fetch(PRESET_URL)
+                .then(response => response.text())
+                .then(data => {
+                    originalPoints = parsePointCloudData(data);
+                    pointsData = processPoints(originalPoints, currentVerticalScale);
+                    visualizePointCloud(pointsData);
+                    checkFileHeight(originalPoints);
+                })
+                .catch(error => console.error('Error fetching preset file:', error));
 
-        const fileName = 'james_matthews.txt';
-        document.querySelector('.custom-file-label').textContent = fileName;
-}
-
+            const fileName = 'james_matthews.txt';
+            document.querySelector('.custom-file-label').textContent = fileName;
+        }
 
         function handleFileSelect(event) {
-    showSpinner();
-    requestAnimationFrame(() => {
-        const file = event.target.files[0];
-        const reader = new FileReader();
+            showSpinner();
+            requestAnimationFrame(() => {
+                const file = event.target.files[0];
+                const reader = new FileReader();
 
-        reader.onload = function (e) {
-            const contents = e.target.result;
-            originalPoints = parsePointCloudData(contents);
-            pointsData = processPoints(originalPoints, currentVerticalScale);
-            visualizePointCloud(pointsData);
-            checkFileHeight(originalPoints);
-            hideSpinner();
-        };
+                reader.onload = function (e) {
+                    const contents = e.target.result;
+                    originalPoints = parsePointCloudData(contents);
+                    pointsData = processPoints(originalPoints, currentVerticalScale);
+                    visualizePointCloud(pointsData);
+                    checkFileHeight(originalPoints);
+                    hideSpinner();
+                };
 
-        reader.readAsText(file);
+                reader.readAsText(file);
 
-        // Update the file input label
-        const fileName = file.name;
-        document.querySelector('.custom-file-label').textContent = fileName;
-    });
-}
-
+                // Update the file input label
+                const fileName = file.name;
+                document.querySelector('.custom-file-label').textContent = fileName;
+            });
+        }
 
         function showSpinner() {
             const fileSpinner = document.getElementById('fileSpinner');
@@ -588,105 +601,103 @@
         }
 
         function visualizePointCloud(pointCloud) {
-    const { points, minIntensity, maxIntensity } = pointCloud;
-    const colorPalette = document.getElementById('colorPalette').value;
+            const { points, minIntensity, maxIntensity } = pointCloud;
+            const colorPalette = document.getElementById('colorPalette').value;
 
-    if (pointsObject) {
-        scene.remove(pointsObject);
-        pointsObject.geometry.dispose();
-        pointsObject.material.dispose();
-    }
-
-    const positions = [];
-    const colors = [];
-    const sizes = [];
-    const opacities = [];
-    let filteredPointCount = 0;
-
-    points.forEach(point => {
-        if (point.intensity >= currentIntensityFilter * maxIntensity) {
-            positions.push(point.x, point.y, point.z);
-
-            const intensityNorm = (point.intensity - currentIntensityFilter * maxIntensity) / (maxIntensity - currentIntensityFilter * maxIntensity);
-            const color = getColor(intensityNorm, colorPalette);
-            colors.push(color.r, color.g, color.b);
-
-            sizes.push(currentPointSize * intensityNorm); // Adjust point size based on intensity and slider value
-            opacities.push(currentTransparency * intensityNorm); // Apply opacity based on intensity and slider value
-            filteredPointCount++;
-        }
-    });
-
-    geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-    geometry.setAttribute('opacity', new THREE.Float32BufferAttribute(opacities, 1));
-
-    const material = new THREE.ShaderMaterial({
-        vertexColors: true,
-        transparent: true,
-        depthTest: false,
-        uniforms: {},
-        vertexShader: `
-            attribute float size;
-            attribute float opacity;
-            varying vec3 vColor;
-            varying float vOpacity;
-            void main() {
-                vColor = color;
-                vOpacity = opacity;
-                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                gl_PointSize = size * (300.0 / -mvPosition.z);
-                gl_Position = projectionMatrix * mvPosition;
+            if (pointsObject) {
+                scene.remove(pointsObject);
+                pointsObject.geometry.dispose();
+                pointsObject.material.dispose();
             }
-        `,
-        fragmentShader: `
-            varying vec3 vColor;
-            varying float vOpacity;
-            void main() {
-                gl_FragColor = vec4(vColor, vOpacity);
-                float dist = distance(gl_PointCoord, vec2(0.5, 0.5));
-                if (dist > 0.5) discard;
-            }
-        `,
-    });
 
-    pointsObject = new THREE.Points(geometry, material);
-    scene.add(pointsObject);
+            const positions = [];
+            const colors = [];
+            const sizes = [];
+            const opacities = [];
+            let filteredPointCount = 0;
 
-    document.getElementById('pointCountLabel').textContent = `Points: ${filteredPointCount.toLocaleString()}`;
-}
+            points.forEach(point => {
+                if (point.intensity >= currentIntensityFilter * maxIntensity) {
+                    positions.push(point.x, point.y, point.z);
 
-function updatePointCloud(pointCloud) {
-    if (!geometry) return;
+                    const intensityNorm = (point.intensity - currentIntensityFilter * maxIntensity) / (maxIntensity - currentIntensityFilter * maxIntensity);
+                    const color = getColor(intensityNorm, colorPalette);
+                    colors.push(color.r, color.g, color.b);
 
-    const { points, minIntensity, maxIntensity } = pointCloud;
-    const colorPalette = document.getElementById('colorPalette').value;
+                    sizes.push(currentPointSize * intensityNorm); // Adjust point size based on intensity and slider value
+                    opacities.push(currentTransparency * intensityNorm); // Apply opacity based on intensity and slider value
+                    filteredPointCount++;
+                }
+            });
 
-    const sizes = [];
-    const opacities = [];
-    let filteredPointCount = 0;
+            geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+            geometry.setAttribute('opacity', new THREE.Float32BufferAttribute(opacities, 1));
 
-    points.forEach(point => {
-        if (point.intensity >= currentIntensityFilter * maxIntensity) {
-            const intensityNorm = (point.intensity - currentIntensityFilter * maxIntensity) / (maxIntensity - currentIntensityFilter * maxIntensity);
-            sizes.push(currentPointSize * intensityNorm); // Adjust point size based on intensity and slider value
-            opacities.push(currentTransparency * intensityNorm); // Apply opacity based on intensity and slider value
-            filteredPointCount++;
+            const material = new THREE.ShaderMaterial({
+                vertexColors: true,
+                transparent: true,
+                depthTest: false,
+                uniforms: {},
+                vertexShader: `
+                    attribute float size;
+                    attribute float opacity;
+                    varying vec3 vColor;
+                    varying float vOpacity;
+                    void main() {
+                        vColor = color;
+                        vOpacity = opacity;
+                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                        gl_PointSize = size * (300.0 / -mvPosition.z);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vColor;
+                    varying float vOpacity;
+                    void main() {
+                        gl_FragColor = vec4(vColor, vOpacity);
+                        float dist = distance(gl_PointCoord, vec2(0.5, 0.5));
+                        if (dist > 0.5) discard;
+                    }
+                `,
+            });
+
+            pointsObject = new THREE.Points(geometry, material);
+            scene.add(pointsObject);
+
+            document.getElementById('pointCountLabel').textContent = `Points: ${filteredPointCount.toLocaleString()}`;
         }
-    });
 
-    geometry.attributes.size.array = new Float32Array(sizes);
-    geometry.attributes.size.needsUpdate = true;
+        function updatePointCloud(pointCloud) {
+            if (!geometry) return;
 
-    geometry.attributes.opacity.array = new Float32Array(opacities);
-    geometry.attributes.opacity.needsUpdate = true;
+            const { points, minIntensity, maxIntensity } = pointCloud;
+            const colorPalette = document.getElementById('colorPalette').value;
 
-    document.getElementById('pointCountLabel').textContent = `Points: ${filteredPointCount.toLocaleString()}`;
-}
+            const sizes = [];
+            const opacities = [];
+            let filteredPointCount = 0;
 
+            points.forEach(point => {
+                if (point.intensity >= currentIntensityFilter * maxIntensity) {
+                    const intensityNorm = (point.intensity - currentIntensityFilter * maxIntensity) / (maxIntensity - currentIntensityFilter * maxIntensity);
+                    sizes.push(currentPointSize * intensityNorm); // Adjust point size based on intensity and slider value
+                    opacities.push(currentTransparency * intensityNorm); // Apply opacity based on intensity and slider value
+                    filteredPointCount++;
+                }
+            });
 
+            geometry.attributes.size.array = new Float32Array(sizes);
+            geometry.attributes.size.needsUpdate = true;
+
+            geometry.attributes.opacity.array = new Float32Array(opacities);
+            geometry.attributes.opacity.needsUpdate = true;
+
+            document.getElementById('pointCountLabel').textContent = `Points: ${filteredPointCount.toLocaleString()}`;
+        }
 
         function checkFileHeight(pointCloud) {
             const height = pointCloud.points.reduce((max, point) => Math.max(max, point.position.z), 0);
