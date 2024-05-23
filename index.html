@@ -28,7 +28,8 @@
             text-decoration: underline;
             white-space: normal;
             display: block;
-            width: 300px;
+            width: 100%;
+            max-width: 120px;
             text-align: center;
             margin: 0 auto;
         }
@@ -588,7 +589,8 @@
                 x: point.position.x * currentModelScale,
                 y: (point.position.z * currentModelScale * scale) + currentHeightAdjustment,  // Apply scaling to the Z coordinate and map it to Y.
                 z: point.position.y * currentModelScale,  // Map Y coordinate to Z.
-                intensity: point.intensity
+                intensity: point.intensity,
+                originalPosition: point.position.clone()
             }));
 
             return { points: processedPoints, minIntensity: pointCloud.minIntensity, maxIntensity: pointCloud.maxIntensity };
@@ -756,17 +758,30 @@
             const cubeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
             const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
 
-            const text = createTextSprite(`POI ${POICounter}\nX: ${INTERSECTION.x.toFixed(2)}\nY: ${INTERSECTION.y.toFixed(2)}\nZ: ${INTERSECTION.z.toFixed(2)}`, 
+            const controllerPosition = new THREE.Vector3();
+            controller.getWorldPosition(controllerPosition);
+            
+            const originalPosition = calculateOriginalPosition(controllerPosition);
+
+            const text = createTextSprite(`POI ${POICounter}\nX: ${originalPosition.x.toFixed(2)}\nY: ${originalPosition.y.toFixed(2)}\nZ: ${originalPosition.z.toFixed(2)}`, 
                                            { fontsize: 24, opacity: 0.8 });
 
-            cube.position.copy(INTERSECTION);
-            text.position.copy(INTERSECTION).add(new THREE.Vector3(0, 0.1, 0));
+            cube.position.copy(controllerPosition);
+            text.position.copy(controllerPosition).add(new THREE.Vector3(0, 0.1, 0));
 
-            placedCubes.push({ cube, text, originalPosition: INTERSECTION.clone() });
+            placedCubes.push({ cube, text, originalPosition: originalPosition.clone() });
             scene.add(cube);
             scene.add(text);
 
             POICounter++;
+        }
+
+        function calculateOriginalPosition(controllerPosition) {
+            return new THREE.Vector3(
+                controllerPosition.x / currentModelScale,
+                (controllerPosition.y - currentHeightAdjustment) / (currentModelScale * currentVerticalScale),
+                controllerPosition.z / currentModelScale
+            );
         }
 
         function createTextSprite(message, parameters) {
@@ -789,12 +804,15 @@
 
             context.lineWidth = borderThickness;
             context.fillStyle = 'rgba(255, 255, 255, 1.0)';
-            context.fillText(message, borderThickness, fontsize + borderThickness);
+            const lines = message.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                context.fillText(lines[i], borderThickness, fontsize + borderThickness + i * fontsize);
+            }
 
             const texture = new THREE.CanvasTexture(canvas);
             const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: opacity });
             const sprite = new THREE.Sprite(spriteMaterial);
-            sprite.scale.set(1.5, 0.75, 1.0);
+            sprite.scale.set(1.5, lines.length * 0.5, 1.0);
 
             return sprite;
         }
