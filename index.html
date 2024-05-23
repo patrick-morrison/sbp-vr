@@ -38,27 +38,27 @@
         }
 
         .custom-vr-button {
-            left: calc(50% - 90px) !important;
-            width: 180px !important;
-            text-decoration: none !important;
-            position: absolute !important;
-            bottom: 40px !important;
-            padding: 12px 6px !important;
-            border: 1px solid #ffffff !important;
-            border-radius: 4px !important;
-            background: rgba(0, 0, 0, 0.1) !important;
-            color: #ffffff !important;
-            font-size: 13px !important;
-            text-align: center !important;
-            opacity: 0.5 !important;
-            outline: currentcolor !important;
-            z-index: 999 !important;
-        }
-        .custom-vr-button:hover {
-            background-color: #343a40 !important;
-            border-color: #343a40 !important;
-            opacity: 0.7 !important;
-        }
+    left: calc(50% - 90px) !important;
+    width: 180px !important;
+    text-decoration: none !important;
+    position: absolute !important;
+    bottom: 40px !important;
+    padding: 12px 6px !important;
+    border: 1px solid #ffffff !important;
+    border-radius: 4px !important;
+    background: rgba(0, 0, 0, 0.1) !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    text-align: center !important;
+    opacity: 0.5 !important;
+    outline: currentcolor !important;
+    z-index: 999 !important;
+}
+.custom-vr-button:hover {
+    background-color: #343a40 !important;
+    border-color: #343a40 !important;
+    opacity: 0.7 !important;
+}
 
     </style>
     <script type="importmap">
@@ -165,9 +165,6 @@
         let currentHeightAdjustment = 0;
         let geometry = null;
         const PRESET_URL = 'https://patrick-morrison.github.io/sbp-vr/james_matthews_github.txt';
-        let poiCounter = 0;
-
-        let previewCube;
 
         init();
         animate();
@@ -241,19 +238,12 @@
 
             function onSelectEnd() {
                 this.userData.isSelecting = false;
-                if (this === controller1) {
-                    const position = new THREE.Vector3();
-                    position.setFromMatrixPosition(controller1.matrixWorld);
-                    const scaledPosition = applyScalingAndAdjustment(position);
-                    addPOI(scaledPosition);
-                } else if (this === controller2) {
-                    if (INTERSECTION) {
-                        const offsetPosition = { x: -INTERSECTION.x, y: -INTERSECTION.y, z: -INTERSECTION.z, w: 1 };
-                        const offsetRotation = new THREE.Quaternion();
-                        const transform = new XRRigidTransform(offsetPosition, offsetRotation);
-                        const teleportSpaceOffset = baseReferenceSpace.getOffsetReferenceSpace(transform);
-                        renderer.xr.setReferenceSpace(teleportSpaceOffset);
-                    }
+                if (INTERSECTION) {
+                    const offsetPosition = { x: -INTERSECTION.x, y: -INTERSECTION.y, z: -INTERSECTION.z, w: 1 };
+                    const offsetRotation = new THREE.Quaternion();
+                    const transform = new XRRigidTransform(offsetPosition, offsetRotation);
+                    const teleportSpaceOffset = baseReferenceSpace.getOffsetReferenceSpace(transform);
+                    renderer.xr.setReferenceSpace(teleportSpaceOffset);
                 }
             }
 
@@ -294,7 +284,6 @@
             document.getElementById('verticalScale').addEventListener('input', function (event) {
                 currentVerticalScale = event.target.value;
                 document.getElementById('verticalScaleLabel').textContent = `Z Scale: ${currentVerticalScale}x`;
-                updatePreviewCube();
                 if (originalPoints) {
                     pointsData = processPoints(originalPoints, currentVerticalScale);
                     visualizePointCloud(pointsData);
@@ -304,14 +293,14 @@
             });
 
             document.getElementById('pointSize').addEventListener('input', function (event) {
-                const pointSizePercentage = event.target.value;
-                const pointSize = pointSizePercentage / 100; // Convert percentage to a scale factor
-                document.getElementById('pointSizeLabel').textContent = `Point Size: ${pointSizePercentage}%`;
-                currentPointSize = pointSize;
-                if (pointsData) {
-                    updatePointCloud(pointsData);
-                }
-            });
+            const pointSizePercentage = event.target.value;
+            const pointSize = pointSizePercentage / 100; // Convert percentage to a scale factor
+            document.getElementById('pointSizeLabel').textContent = `Point Size: ${pointSizePercentage}%`;
+            currentPointSize = pointSize;
+            if (pointsData) {
+                updatePointCloud(pointsData);
+            }
+        });
 
             document.getElementById('transparency').addEventListener('input', function (event) {
                 currentTransparency = parseFloat(event.target.value);
@@ -349,7 +338,6 @@
                 verticalScale.value = 1;
                 currentVerticalScale = 1;
                 document.getElementById('verticalScaleLabel').textContent = `Z Scale: ${currentVerticalScale}x`;
-                updatePreviewCube();
                 if (originalPoints) {
                     pointsData = processPoints(originalPoints, currentVerticalScale);
                     visualizePointCloud(pointsData);
@@ -381,7 +369,6 @@
             document.getElementById('modelScale').addEventListener('input', function (event) {
                 currentModelScale = event.target.value;
                 document.getElementById('modelScaleLabel').textContent = `Model Scale: ${Math.round(currentModelScale * 100)}%`;
-                updatePreviewCube();
                 if (originalPoints) {
                     pointsData = processPoints(originalPoints, currentVerticalScale);
                     visualizePointCloud(pointsData);
@@ -391,7 +378,6 @@
             document.getElementById('verticalAdjustment').addEventListener('input', function (event) {
                 currentHeightAdjustment = parseFloat(event.target.value); 
                 document.getElementById('verticalAdjustmentLabel').textContent = `Vertical Adjustment: ${currentHeightAdjustment}`;
-                updatePreviewCube();
                 if (originalPoints) {
                     pointsData = processPoints(originalPoints, currentVerticalScale);
                     visualizePointCloud(pointsData);
@@ -435,9 +421,6 @@
 
                 // Fetch and load the preset file
                 fetchPresetFile();
-
-                // Create preview cube
-                createPreviewCube();
         }
 
         function buildController(data) {
@@ -490,8 +473,6 @@
 
             handleJoystickMovement(controller1);
             handleJoystickMovement(controller2);
-
-            updatePreviewCube();
 
             if (controls.enabled) {
                 controls.update();
@@ -598,10 +579,7 @@
                 x: point.position.x * currentModelScale,
                 y: (point.position.z * currentModelScale * scale) + currentHeightAdjustment,  // Apply scaling to the Z coordinate and map it to Y.
                 z: point.position.y * currentModelScale,  // Map Y coordinate to Z.
-                intensity: point.intensity,
-                originalX: point.position.x,
-                originalY: point.position.y,
-                originalZ: point.position.z
+                intensity: point.intensity
             }));
 
             return { points: processedPoints, minIntensity: pointCloud.minIntensity, maxIntensity: pointCloud.maxIntensity };
@@ -762,52 +740,6 @@
         function showNotification() {
             var flatNotif = new bootstrap.Collapse(document.getElementById('flatNotif'));
             flatNotif.show();
-        }
-
-        function createPreviewCube() {
-            const cubeGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
-            const cubeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
-            previewCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-            scene.add(previewCube);
-        }
-
-        function updatePreviewCube() {
-            const position = new THREE.Vector3();
-            position.setFromMatrixPosition(controller1.matrixWorld);
-            const scaledPosition = applyScalingAndAdjustment(position);
-            previewCube.position.copy(scaledPosition);
-        }
-
-        function applyScalingAndAdjustment(position) {
-            return new THREE.Vector3(
-                position.x * currentModelScale,
-                (position.z * currentVerticalScale * currentModelScale) + currentHeightAdjustment,
-                position.y * currentModelScale
-            );
-        }
-
-        function addPOI(position) {
-            const cubeGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
-            const cubeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
-            const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-
-            cube.position.copy(position);
-            scene.add(cube);
-
-            const textLoader = new THREE.FontLoader();
-            textLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
-                const textGeometry = new THREE.TextGeometry(`POI ${++poiCounter}\nX: ${position.x.toFixed(2)}\nY: ${position.y.toFixed(2)}\nZ: ${position.z.toFixed(2)}`, {
-                    font: font,
-                    size: 0.1,
-                    height: 0.1,
-                });
-
-                const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-
-                textMesh.position.set(position.x + 0.1, position.y, position.z);
-                scene.add(textMesh);
-            });
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
