@@ -166,6 +166,7 @@
         const PRESET_URL = 'https://patrick-morrison.github.io/sbp-vr/james_matthews_github.txt';
         let placedCubes = [];
         let storedCubePositions = [];
+        let centerX, centerY, centerZ; // Initialize center variables
 
         init();
         animate();
@@ -291,7 +292,7 @@
                 }
                 var flatNotif = new bootstrap.Collapse(document.getElementById('flatNotif'), { toggle: false });
                 flatNotif.hide();
-                updateCubes();
+                updateCubes(); // Ensure this is called
             });
 
             document.getElementById('pointSize').addEventListener('input', function (event) {
@@ -375,17 +376,17 @@
                     pointsData = processPoints(originalPoints, currentVerticalScale);
                     visualizePointCloud(pointsData);
                 }
-                updateCubes();
+                updateCubes(); // Ensure this is called
             });
 
             document.getElementById('verticalAdjustment').addEventListener('input', function (event) {
-                currentHeightAdjustment = parseFloat(event.target.value); 
+                currentHeightAdjustment = parseFloat(event.target.value);
                 document.getElementById('verticalAdjustmentLabel').textContent = `Vertical Adjustment: ${currentHeightAdjustment}`;
                 if (originalPoints) {
                     pointsData = processPoints(originalPoints, currentVerticalScale);
                     visualizePointCloud(pointsData);
                 }
-                updateCubes();
+                updateCubes(); // Ensure this is called
             });
 
             const controllerCubeGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
@@ -566,9 +567,9 @@
                     maxIntensity = Math.max(maxIntensity, intensity);
                 }
             }
-            const centerX = (minX + maxX) / 2;
-            const centerY = (minY + maxY) / 2;
-            const centerZ = (minZ + maxZ) / 2;
+            centerX = (minX + maxX) / 2; // Set centerX
+            centerY = (minY + maxY) / 2; // Set centerY
+            centerZ = (minZ + maxZ) / 2; // Set centerZ
             points.forEach(point => {
                 point.position.x -= centerX;
                 point.position.y -= centerY;
