@@ -28,8 +28,7 @@
             text-decoration: underline;
             white-space: normal;
             display: block;
-            width: 100%;
-            max-width: 120px;
+            width: 300px;
             text-align: center;
             margin: 0 auto;
         }
@@ -38,27 +37,28 @@
         }
 
         .custom-vr-button {
-            left: calc(50% - 90px) !important;
-            width: 180px !important;
-            text-decoration: none !important;
-            position: absolute !important;
-            bottom: 40px !important;
-            padding: 12px 6px !important;
-            border: 1px solid #ffffff !important;
-            border-radius: 4px !important;
-            background: rgba(0, 0, 0, 0.1) !important;
-            color: #ffffff !important;
-            font-size: 13px !important;
-            text-align: center !important;
-            opacity: 0.5 !important;
-            outline: currentcolor !important;
-            z-index: 999 !important;
-        }
-        .custom-vr-button:hover {
-            background-color: #343a40 !important;
-            border-color: #343a40 !important;
-            opacity: 0.7 !important;
-        }
+    left: calc(50% - 90px) !important;
+    width: 180px !important;
+    text-decoration: none !important;
+    position: absolute !important;
+    bottom: 40px !important;
+    padding: 12px 6px !important;
+    border: 1px solid #ffffff !important;
+    border-radius: 4px !important;
+    background: rgba(0, 0, 0, 0.1) !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    text-align: center !important;
+    opacity: 0.5 !important;
+    outline: currentcolor !important;
+    z-index: 999 !important;
+}
+.custom-vr-button:hover {
+    background-color: #343a40 !important;
+    border-color: #343a40 !important;
+    opacity: 0.7 !important;
+}
+
     </style>
     <script type="importmap">
         {
@@ -164,9 +164,6 @@
         let currentHeightAdjustment = 0;
         let geometry = null;
         const PRESET_URL = 'https://patrick-morrison.github.io/sbp-vr/james_matthews_github.txt';
-        let placedCubes = [];
-        let storedCubePositions = [];
-        let centerX, centerY, centerZ; // Initialize center variables
 
         init();
         animate();
@@ -210,7 +207,7 @@
             renderer.xr.enabled = true;
 
             controls = new OrbitControls(camera, renderer.domElement);
-            controls.target.set(0, 1.3, 0); // Set the orbit center 1.3 units up
+            controls.target.set(0, 1.3, 0); // Set the orbit center 1.5 units up
             controls.update(); // Ensure the controls are updated with the new target
             controls.enableDamping = true;
             controls.dampingFactor = 0.25;
@@ -240,13 +237,13 @@
 
             function onSelectEnd() {
                 this.userData.isSelecting = false;
-                const placedCube = new THREE.Mesh(controllerCubeGeometry, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }));
-                placedCube.position.copy(controller1.position);
-                scene.add(placedCube);
-
-                const originalPosition = reverseTransformations(placedCube.position);
-                storedCubePositions.push(originalPosition);
-                placedCubes.push(placedCube);
+                if (INTERSECTION) {
+                    const offsetPosition = { x: -INTERSECTION.x, y: -INTERSECTION.y, z: -INTERSECTION.z, w: 1 };
+                    const offsetRotation = new THREE.Quaternion();
+                    const transform = new XRRigidTransform(offsetPosition, offsetRotation);
+                    const teleportSpaceOffset = baseReferenceSpace.getOffsetReferenceSpace(transform);
+                    renderer.xr.setReferenceSpace(teleportSpaceOffset);
+                }
             }
 
             controller1 = renderer.xr.getController(0);
@@ -292,18 +289,17 @@
                 }
                 var flatNotif = new bootstrap.Collapse(document.getElementById('flatNotif'), { toggle: false });
                 flatNotif.hide();
-                updateCubes(); // Ensure this is called
             });
 
             document.getElementById('pointSize').addEventListener('input', function (event) {
-                const pointSizePercentage = event.target.value;
-                const pointSize = pointSizePercentage / 100; // Convert percentage to a scale factor
-                document.getElementById('pointSizeLabel').textContent = `Point Size: ${pointSizePercentage}%`;
-                currentPointSize = pointSize;
-                if (pointsData) {
-                    updatePointCloud(pointsData);
-                }
-            });
+            const pointSizePercentage = event.target.value;
+            const pointSize = pointSizePercentage / 100; // Convert percentage to a scale factor
+            document.getElementById('pointSizeLabel').textContent = `Point Size: ${pointSizePercentage}%`;
+            currentPointSize = pointSize;
+            if (pointsData) {
+                updatePointCloud(pointsData);
+            }
+        });
 
             document.getElementById('transparency').addEventListener('input', function (event) {
                 currentTransparency = parseFloat(event.target.value);
@@ -376,57 +372,54 @@
                     pointsData = processPoints(originalPoints, currentVerticalScale);
                     visualizePointCloud(pointsData);
                 }
-                updateCubes(); // Ensure this is called
             });
 
             document.getElementById('verticalAdjustment').addEventListener('input', function (event) {
-                currentHeightAdjustment = parseFloat(event.target.value);
+                currentHeightAdjustment = parseFloat(event.target.value); 
                 document.getElementById('verticalAdjustmentLabel').textContent = `Vertical Adjustment: ${currentHeightAdjustment}`;
                 if (originalPoints) {
                     pointsData = processPoints(originalPoints, currentVerticalScale);
                     visualizePointCloud(pointsData);
                 }
-                updateCubes(); // Ensure this is called
             });
 
-            const controllerCubeGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
-            const controllerCubeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
-            const controllerCube = new THREE.Mesh(controllerCubeGeometry, controllerCubeMaterial);
-            controller1.add(controllerCube);
+                // Set initial slider values
+                const verticalScale = document.getElementById('verticalScale');
+                const pointSize = document.getElementById('pointSize');
+                const transparency = document.getElementById('transparency');
+                const intensityFilter = document.getElementById('intensityFilter');
+                const colorPalette = document.getElementById('colorPalette');
+                const modelScale = document.getElementById('modelScale');
+                const verticalAdjustment = document.getElementById('verticalAdjustment');
 
-            // Set initial slider values
-            setDefaultSliderValues();
+                document.getElementById('verticalScale').value = 10;
+                document.getElementById('verticalScaleLabel').textContent = `Z Scale: 10x`;
+                document.getElementById('verticalScale').dispatchEvent(new Event('input'));
 
-            // Fetch and load the preset file
-            fetchPresetFile();
-        }
+                document.getElementById('pointSize').value = 10;
+                document.getElementById('pointSizeLabel').textContent = `Point Size: 10%`;
+                document.getElementById('pointSize').dispatchEvent(new Event('input'));
 
-        function setDefaultSliderValues() {
-            document.getElementById('verticalScale').value = 10;
-            document.getElementById('verticalScaleLabel').textContent = `Z Scale: 10x`;
-            document.getElementById('verticalScale').dispatchEvent(new Event('input'));
+                document.getElementById('transparency').value = 0.6;
+                document.getElementById('transparencyLabel').textContent = `Opacity: 0.6x`;
+                document.getElementById('transparency').dispatchEvent(new Event('input'));
 
-            document.getElementById('pointSize').value = 10;
-            document.getElementById('pointSizeLabel').textContent = `Point Size: 10%`;
-            document.getElementById('pointSize').dispatchEvent(new Event('input'));
+                document.getElementById('intensityFilter').value = 0.05;
+                document.getElementById('intensityFilterLabel').textContent = `Min Intensity: 0.05`;
+                document.getElementById('intensityFilter').dispatchEvent(new Event('input'));
 
-            document.getElementById('transparency').value = 0.6;
-            document.getElementById('transparencyLabel').textContent = `Opacity: 0.6x`;
-            document.getElementById('transparency').dispatchEvent(new Event('input'));
+                document.getElementById('colorPalette').value = 'rainbow';
 
-            document.getElementById('intensityFilter').value = 0.05;
-            document.getElementById('intensityFilterLabel').textContent = `Min Intensity: 0.05`;
-            document.getElementById('intensityFilter').dispatchEvent(new Event('input'));
+                document.getElementById('modelScale').value = 0.10;
+                document.getElementById('modelScaleLabel').textContent = `Model Scale: 10%`;
+                document.getElementById('modelScale').dispatchEvent(new Event('input'));
 
-            document.getElementById('colorPalette').value = 'rainbow';
+                document.getElementById('verticalAdjustment').value = 1.3;
+                document.getElementById('verticalAdjustmentLabel').textContent = `Vertical Adjustment: 1.3`;
+                document.getElementById('verticalAdjustment').dispatchEvent(new Event('input'));
 
-            document.getElementById('modelScale').value = 0.10;
-            document.getElementById('modelScaleLabel').textContent = `Model Scale: 10%`;
-            document.getElementById('modelScale').dispatchEvent(new Event('input'));
-
-            document.getElementById('verticalAdjustment').value = 1.3;
-            document.getElementById('verticalAdjustmentLabel').textContent = `Vertical Adjustment: 1.3`;
-            document.getElementById('verticalAdjustment').dispatchEvent(new Event('input'));
+                // Fetch and load the preset file
+                fetchPresetFile();
         }
 
         function buildController(data) {
@@ -493,6 +486,7 @@
                 const inputSource = session.inputSources[controller.index];
                 if (inputSource && inputSource.gamepad) {
                     const axes = inputSource.gamepad.axes;
+                    // axes[2] is horizontal (left/right), axes[3] is vertical (up/down)
                     const speed = 0.05;
                     camera.position.x -= axes[2] * speed;
                     camera.position.y += axes[3] * speed; // Adjusting vertical movement
@@ -532,6 +526,7 @@
 
                 reader.readAsText(file);
 
+                // Update the file input label
                 const fileName = file.name;
                 document.querySelector('.custom-file-label').textContent = fileName;
             });
@@ -567,15 +562,15 @@
                     maxIntensity = Math.max(maxIntensity, intensity);
                 }
             }
-            centerX = (minX + maxX) / 2; // Set centerX
-            centerY = (minY + maxY) / 2; // Set centerY
-            centerZ = (minZ + maxZ) / 2; // Set centerZ
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+            const centerZ = (minZ + maxZ) / 2;
             points.forEach(point => {
                 point.position.x -= centerX;
                 point.position.y -= centerY;
                 point.position.z -= centerZ;
             });
-            return { points, minIntensity, maxIntensity, centerX, centerY, centerZ };
+            return { points, minIntensity, maxIntensity };
         }
 
         function processPoints(pointCloud, scale) {
@@ -744,21 +739,6 @@
         function showNotification() {
             var flatNotif = new bootstrap.Collapse(document.getElementById('flatNotif'));
             flatNotif.show();
-        }
-
-        function updateCubes() {
-            placedCubes.forEach((cube, index) => {
-                const originalPosition = storedCubePositions[index];
-                const correctedPosition = correctPosition(originalPosition);
-                cube.position.copy(correctedPosition);
-            });
-        }
-
-        function correctPosition(originalPosition) {
-            const x = (originalPosition.x - centerX) * currentModelScale;
-            const y = (originalPosition.z - centerZ) * currentModelScale * currentVerticalScale + currentHeightAdjustment;
-            const z = (originalPosition.y - centerY) * currentModelScale;
-            return new THREE.Vector3(x, y, z);
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
