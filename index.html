@@ -244,6 +244,9 @@
                 if (this === controller1) {
                     const position = new THREE.Vector3();
                     position.setFromMatrixPosition(controller1.matrixWorld);
+                    position.x *= currentModelScale;
+                    position.y = (position.z * currentVerticalScale * currentModelScale) + currentHeightAdjustment;
+                    position.z *= currentModelScale;
                     addPOI(position);
                 } else if (this === controller2) {
                     if (INTERSECTION) {
