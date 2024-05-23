@@ -302,14 +302,14 @@
             });
 
             document.getElementById('pointSize').addEventListener('input', function (event) {
-            const pointSizePercentage = event.target.value;
-            const pointSize = pointSizePercentage / 100; // Convert percentage to a scale factor
-            document.getElementById('pointSizeLabel').textContent = `Point Size: ${pointSizePercentage}%`;
-            currentPointSize = pointSize;
-            if (pointsData) {
-                updatePointCloud(pointsData);
-            }
-        });
+                const pointSizePercentage = event.target.value;
+                const pointSize = pointSizePercentage / 100; // Convert percentage to a scale factor
+                document.getElementById('pointSizeLabel').textContent = `Point Size: ${pointSizePercentage}%`;
+                currentPointSize = pointSize;
+                if (pointsData) {
+                    updatePointCloud(pointsData);
+                }
+            });
 
             document.getElementById('transparency').addEventListener('input', function (event) {
                 currentTransparency = parseFloat(event.target.value);
@@ -760,8 +760,8 @@
         }
 
         function createPreviewCube() {
-            const cubeGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-            const cubeMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.2 });
+            const cubeGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+            const cubeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
             previewCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
             scene.add(previewCube);
         }
@@ -773,8 +773,8 @@
         }
 
         function addPOI(position) {
-            const cubeGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-            const cubeMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const cubeGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+            const cubeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
             const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
 
             cube.position.copy(position);
@@ -791,7 +791,7 @@
                 const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
                 const textMesh = new THREE.Mesh(textGeometry, textMaterial);
 
-                textMesh.position.set(position.x + 0.2, position.y, position.z);
+                textMesh.position.set(position.x + 0.1, position.y, position.z);
                 scene.add(textMesh);
             });
         }
