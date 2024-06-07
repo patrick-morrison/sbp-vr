@@ -573,16 +573,19 @@
             return { points, minIntensity, maxIntensity };
         }
 
-        function processPoints(pointCloud, scale) {
-            const processedPoints = pointCloud.points.map(point => ({
-                x: point.position.x * currentModelScale,
-                y: (point.position.z * currentModelScale * scale) + currentHeightAdjustment,  // Apply scaling to the Z coordinate and map it to Y.
-                z: point.position.y * currentModelScale,  // Map Y coordinate to Z.
-                intensity: point.intensity
-            }));
+            function processPoints(pointCloud, scale) {
+                const noiseFactor = 0.1; // Adjust this value to control the amount of noise
+            
+                const processedPoints = pointCloud.points.map(point => ({
+                    x: point.position.x * currentModelScale + (Math.random() - 0.5) * noiseFactor,
+                    y: (point.position.z * currentModelScale * scale) + currentHeightAdjustment + (Math.random() - 0.5) * noiseFactor,
+                    z: point.position.y * currentModelScale + (Math.random() - 0.5) * noiseFactor,
+                    intensity: point.intensity
+                }));
+            
+                return { points: processedPoints, minIntensity: pointCloud.minIntensity, maxIntensity: pointCloud.maxIntensity };
+            }
 
-            return { points: processedPoints, minIntensity: pointCloud.minIntensity, maxIntensity: pointCloud.maxIntensity };
-        }
 
         function getColor(value, palette) {
             const norm = value / 1.0;
