@@ -574,7 +574,7 @@
         }
 
             function processPoints(pointCloud, scale) {
-                const noiseFactor = 0.1; // Adjust this value to control the amount of noise
+                const noiseFactor = 0.02; // Adjust this value to control the amount of noise
             
                 const processedPoints = pointCloud.points.map(point => ({
                     x: point.position.x * currentModelScale + (Math.random() - 0.5) * noiseFactor,
