@@ -590,8 +590,8 @@
         function getColor(value, palette) {
             const norm = value / 1.0;
             if (palette === 'rainbow') {
-                const hue = (1.0 - norm) * 270;
-                return new THREE.Color(`hsl(${hue}, 100%, 50%)`);
+                const hue = (1.0 - norm) * 360;
+                return new THREE.Color(`hsl(${hue}, 85%, 50%)`);
             } else if (palette === 'redBlue') {
                 const r = norm > 0.5 ? 1 : 2 * norm;
                 const g = norm > 0.5 ? 2 * (1 - norm) : 2 * norm;
